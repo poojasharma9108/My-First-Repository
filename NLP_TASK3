@@ -1,0 +1,148 @@
+import pandas as pd #used for data analysis
+
+import string #The string module contains a set of useful constants, such as ascii_letters and digits
+
+from nltk.stem.porter import PorterStemmer #removing the commoner morphological and inflexional endings from words in English and part of a term normalisation process that is usually done when setting up Information Retrieval systems.
+
+from sklearn.preprocessing import LabelEncoder #Label Encoding refers to converting the labels into numeric form so as to convert it into the machine-readable form
+
+import nltk #NLTK is a platform for building Python programs to work with human language data.NLTK is a set of libraries for Natural Language Processing.
+
+from nltk.corpus import stopwords # In linguistics, a corpus (plural corpora) or text corpus is a large and structured set of texts.Corpus package automatically creates a set of corpus reader instances that can be used to access the corpora in the NLTK data package.Stop words are usually articles, prepositions, conjunctions, pronouns, etc.For tasks like text classification, where the text is to be classified into different categories, stopwords are removed or excluded from the given text so that more focus can be given to those words which define the meaning of the text.
+
+import re#Regular expression or RegEx in Python is denoted as RE (REs, regexes or regex pattern) are imported through re module. Python supports regular expression through libraries. RegEx in Python supports various things like Modifiers, Identifiers, and White space characters. 
+
+from sklearn.feature_extraction.text import CountVectorizer #CountVectorizer provides a simple way to both tokenize a collection of text documents and build a vocabulary of known words, but also to encode new documents using that vocabulary. 
+
+from sklearn.model_selection import train_test_split #To split the dataset into train and test data
+
+from sklearn.naive_bayes import GaussianNB#to implement the Gaussian Naïve Bayes algorithm for classification.
+
+from sklearn.metrics import accuracy_score#to find the accuracy of the model
+
+from sklearn.metrics import confusion_matrix#to find the confusion matrix
+
+import matplotlib.pyplot as plt#for visualizing the data
+
+from nltk.stem import WordNetLemmatizer#lemmatization does morphological analysis of the words. 
+
+
+
+data=pd.read_csv("flipkart_sample.csv")#The csv file containing the dataset has been renamed as "flipkart_sampe.csv" and has been read through pandas
+
+
+
+print(f"{data.shape} before dropping the null values")
+data=data.dropna()
+print(f"{data.shape} after dropping the null values")
+
+
+
+#Check whether the data consist any column with null values
+data.isna().any()
+
+
+#Return a Series containing counts of unique values.
+data["description"].value_counts
+data['product_specifications'].value_counts
+data['product_name'].value_counts
+
+
+#Making a separate column merging the columns which have the important feature that would help to increase the accuracy of the model
+#the columns 'dsecritpion','product_specifications' and 'product_name' would help to identify the target column 'category' of the data
+
+data['important_feature']=data["description"]+data['product_specifications']+data['product_name']
+
+
+#creating a fucntion to clean all the punctuations in the data
+def punct(text):
+    no_punct="".join([str(c) for c in text if c not in string.punctuation])
+    return no_punct
+    
+   
+data['product_category_tree']=data['product_category_tree'].apply(lambda x:punct(x))#calling the function by passing the every sentece as 'x using the lambda.It is generally used as an argument to a higher-order function (a function that takes in other functions as arguments).Functions when we require a nameless function for a short period of time.
+print(data["product_category_tree"].head())#to display the result after cleaning the punctuations in the data
+
+
+data['important_feature']=data['important_feature'].astype(str) #It is used to change data type of a series. When data frame is made from a csv file, the columns are imported and data type is set automatically which many times is not what it actually should have. 
+
+data['important_feature'] = data['important_feature'].str.replace('\d+', '') #It is used to replace all the digits in the data.
+data['important_feature']=data['important_feature'].apply(lambda x:punct(x))#Cleaning the punctuations from the data
+data['important_feature'].head()#Displaying the results after the cleaning
+
+
+#downloading the stopwords from the nltk library
+nltk.download('stopwords')
+
+
+stop=set(stopwords.words('english'))
+#making a set of the stopwords in the english.The 'set' function makes all the unique collection of the stopwords
+stop=[i for i in stop if len(i)!=1]#took all the stopwords whose length is greater than 1
+print(stop)
+
+
+le=LabelEncoder()#Calling the label Enocer function.The encoders are part of the SciKit Learn library in Python, and they are used to convert categorical data, or text data, into numbers, which our predictive models can better understand.
+y=data["important_feature"].values
+le.fit_transform(y)#a vector containing non-null values is passed and fits the labelencoder model on given data and calculates the encoding and save in memory
+print(y)
+
+
+
+
+cor=[]# a new list to store the processed data
+
+for i in range(0,len(data)):
+    #running a loop inorder to go through every sentence
+    #the following operation is done under the 'try' section as it shouldn't raise any error while running the loop.
+    #Due to cleaning there are some rows which are null and it would result in the 'KeyError'.Hence to avoid the error we create an exception that would not a break the loop
+    
+    try:
+        feature=re.sub('[^a-zA-Z]',' ',data["important_feature"][i])#The first parameter to the sub function is the regular expression that finds the pattern to substitute. The second parameter is the new text that you want as a replacement for the old text and the third parameter is the text string on which the substitute operation will be performed.
+
+
+        feauture=feature.lower()#converting all the letters  to lowercase
+        
+        feature.split()#split the sentences
+        
+        ps=PorterStemmer()#Stemming is the process of reducing a word to its word stem that affixes to suffixes and prefixes or to the roots of words known as a lemma.The algorithmic steps in Porter Stemmer algorithm. A native implementation in Python. Using Porter Stemmer algorithm from NLTK library.
+        
+        feature=[ps.stem(word) for word in feature if not word in stop]#ccreating a list that would stem the 'word' if it is not a part of stopwords
+        
+        feature=''.join(feature)#joining the words 
+        
+        cor.append(feature)#appending the 'features' into the list 'cor'
+        
+    #exception is occured
+    
+    except KeyError:
+        
+        pass
+        
+        
+     
+ #Convert a collection of text documents to a matrix of token counts
+#CountVectorizer implements both tokenization and occurrence counting in a single class:
+
+cv=CountVectorizer(max_features=9498)#build a vocabulary that only consider the top max_features ordered by term frequency across the corpus.
+
+X=cv.fit_transform(cor).toarray()#fitting the 'cor' into CountVectorizer and converting it to the array
+
+Y=data.iloc[:len(X),4].values#creating the target feature named 'product_category_tree' 
+#the size is been sliced according to the X dataset
+
+
+X_train,X_test,Y_train,Y_test=train_test_split(X,Y,test_size=0.1,random_state=0)#splitting the dataset into the 10 percent training and 90 percent testing dataset 
+
+classifier=GaussianNB()#calling the function
+
+classifier.fit(X_train,Y_train)#fitting the X_train and Y_train into the GaussianNB
+
+Y_prediction=classifier.predict(X_test)#predicting the category
+ 
+ #printing the accuacry score of the model
+
+print(accuracy_score(Y_prediction,Y_test))
+
+#finidng the confusion matrix and printing the value matrix
+CM=confusion_matrix(Y_test,Y_prediction)
+print(CM)
